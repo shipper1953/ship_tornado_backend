@@ -1,36 +1,31 @@
+// src/routes/authRoutes.js
 const express = require('express');
+const { body } = require('express-validator');
 const router = express.Router();
 const authController = require('../controllers/authController');
-const authMiddleware = require('../middleware/authMiddleware');
-const rateLimit = require('express-rate-limit');
-const { body } = require('express-validator');
-
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 mins
-  max: 10, // limit to 10 requests per IP
-  message: { error: 'Too many requests, please try again later.' },
-});
+const authMiddleware = require('../middleware/auth');
 
 router.post(
-    '/register',
-    authLimiter,
-    [
-      body('email').isEmail().withMessage('Valid email required'),
-      body('password').isLength({ min: 6 }).withMessage('Password must be 6+ chars'),
-      body('company_id').isUUID().withMessage('Valid company_id required'),
-    ],
-    authController.register
-  );
-router.post(
-    '/login',
-    authLimiter,
-    [
-      body('email').isEmail(),
-      body('password').notEmpty(),
-    ],
-    authController.login
-  );
+  '/register',
+  [
+    body('email').isEmail(),
+    body('password').isLength({ min: 6 }),
+    body('company_id').notEmpty(),
+  ],
+  authController.register
+);
 
-router.get('/me', authMiddleware, authController.getProfile);
+router.post(
+  '/login',
+  [
+    body('email').isEmail(),
+    body('password').notEmpty(),
+  ],
+  authController.login
+);
+
+// ✅ Fix: Use the correct method name
+router.get('/me', authMiddleware, authController.getCurrentUser);
 
 module.exports = router;
+

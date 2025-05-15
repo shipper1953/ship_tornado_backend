@@ -1,49 +1,52 @@
-const bcrypt = require('bcryptjs');
+// src/services/authService.js
+const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const db = require('../../db');
+const db = require('../../db'); // ✅ Correct relative path to DB
 
-const SALT_ROUNDS = 10;
-const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey'; // Use .env for real projects
+const login = async ({ email, password }) => {
+  const user = await db('users')
+  .select('users.*', 'user_roles.role_id')
+  .leftJoin('user_roles', 'users.id', 'user_roles.user_id')
+  .where('users.email', email)
+  .first();
 
-exports.register = async (email, password, company_id) => {
-  // Check for existing user
-  const existingUser = await db('users').where({ email }).first();
-  if (existingUser) {
-    throw new Error('User already exists');
-  }
+  if (!user) throw new Error('Invalid credentials');
 
-  // Hash password
-  const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+  const valid = await bcrypt.compare(password, user.password_hash);
+  if (!valid) throw new Error('Invalid credentials');
 
-  // Insert user into database
+  const token = jwt.sign(
+    {
+      sub: user.id,
+      email: user.email,
+      company_id: user.company_id,
+      role_id: user.role_id
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: '1h' }
+  );
+
+  return {
+    token,
+    user: {
+      id: user.id,
+      email: user.email,
+      role_id: user.role_id,
+      company_id: user.company_id,
+    },
+  };
+};
+
+const register = async ({ email, password, company_id, role_id }) => {
+  const password_hash = await bcrypt.hash(password, 10);
   const [user] = await db('users')
-    .insert({
-      email,
-      password: hashedPassword,
-      company_id,
-      role_id: 1, // Default role (e.g., Admin); update as needed
-    })
+    .insert({ email, password_hash, company_id, role_id })
     .returning(['id', 'email', 'company_id', 'role_id']);
 
   return user;
 };
 
-exports.login = async (email, password) => {
-  const user = await db('users').where({ email }).first();
-  if (!user) {
-    throw new Error('Invalid credentials');
-  }
-
-  const isMatch = await bcrypt.compare(password, user.password);
-  if (!isMatch) {
-    throw new Error('Invalid credentials');
-  }
-
-  const token = jwt.sign(
-    { id: user.id, email: user.email, company_id: user.company_id, role_id: user.role_id },
-    JWT_SECRET,
-    { expiresIn: '1h' }
-  );
-
-  return token;
+module.exports = {
+  login,
+  register,
 };

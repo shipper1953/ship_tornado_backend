@@ -1,27 +1,37 @@
 const express = require('express');
+const app = express();
 const cors = require('cors');
 const morgan = require('morgan');
+const allowedOrigins = ['http://localhost:5173', 'http://localhost:8080'];
+
+// Route Imports
+const roleRoutes = require('./routes/roleRoutes');
 const adminRoutes = require('./routes/adminRoutes');
-const orderRoutes = require("./routes/orderRoutes");
+const orderRoutes = require('./routes/orderRoutes');
 const shipmentRoutes = require('./routes/shipmentRoutes');
+const authRoutes = require('./routes/authRoutes');
+const userRoutes = require('./routes/userRoutes');
 
-const app = express();
-
+// Middleware
 app.use(cors({
-  origin: 'http://localhost:5173',
-  credentials: true,
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
 }));
 app.use(morgan('dev'));
 app.use(express.json());
-app.use("/api/orders", orderRoutes);
+
+// Mount Routes
+app.use('/api/orders', orderRoutes);
 app.use('/api/shipments', shipmentRoutes);
-
-// Mount Auth Routes
-app.use('/api/auth', require('./routes/authRoutes'));
-
-// Mount User Routes
-app.use('/api/user', require('./routes/userRoutes'));
-// Mount Admin Routes
+app.use('/api/roles', roleRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/user', userRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Health Check
@@ -29,13 +39,8 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'Ship Tornado backend is healthy 🚀' });
 });
 
-const PORT = process.env.PORT || 5001;
-app.listen(PORT, () => {
-  console.log(`Backend running on http://localhost:${PORT}`);
-});
-
-// 404 Not Found Handler
-app.use((req, res, next) => {
+// 404 Handler
+app.use((req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
 
@@ -45,3 +50,8 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Server error' });
 });
 
+// Start Server
+const PORT = process.env.PORT || 5001;
+app.listen(PORT, () => {
+  console.log(`Backend running on http://localhost:${PORT}`);
+});

@@ -1,17 +1,20 @@
-# Use official Node.js image
-FROM node:20
+# Start from an official Node.js image
+FROM node:20-slim
 
 # Set working directory
 WORKDIR /app
 
-# Copy only package files first for better caching
+# Copy only package.json and lock file first for caching
 COPY package*.json ./
 
-# Install all dependencies (including express, bcrypt, knex, etc.)
-RUN npm install --build-from-source
+# Install dependencies
+RUN npm install --production
 
-# Copy rest of the app
+# Copy the rest of the app source
 COPY . .
 
-# Default command
-CMD ["npx", "nodemon", "src/index.js"]
+# Expose app port
+EXPOSE 5001
+
+# Start the app
+CMD ["npm", "start"]
